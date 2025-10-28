@@ -1,239 +1,27 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Emplois du Temps — CMC</title>
-
-  <!-- Google fonts (optional) -->
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-
-  <style>
-    :root{
-      --primary:#0b63b8;
-      --accent:#6c2fa1;
-      --bg:#f6f6f8;
-      --card:#ffffff;
-    }
-    *{box-sizing:border-box}
-    body{ font-family: Inter, system-ui, Arial; background:var(--bg); margin:0; color:#222; -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale; }
-    .header{
-      background: linear-gradient(135deg,#3b7bd3,#22c1c3);
-      color:white;
-      text-align:center;
-      padding:24px 12px;
-    }
-    .header h1{ margin:0; font-size:20px; font-weight:700; }
-    .subtitle{ opacity:0.95; margin-top:6px; font-size:13px; }
-
-    .container{ max-width:920px; margin:18px auto; padding:0 16px; }
-
-    .title-centered{ text-align:center; color:var(--accent); font-size:20px; margin:12px 0; }
-
-    .poles-grid{ display:flex; flex-direction:column; gap:12px; align-items:center; margin-bottom:12px; }
-    .pole-card{
-      width:92%; max-width:720px;
-      background:var(--card); border-radius:16px; padding:18px 20px;
-      font-size:18px; font-weight:600; box-shadow:0 6px 18px rgba(0,0,0,0.08);
-      border: none; cursor:pointer; text-align:center;
-    }
-    .pole-card.active{ background:var(--primary); color:white; transform:translateY(-2px); }
-
-    .section-title{ margin-top:14px; color:#333; text-align:left; margin-left:6%; }
-
-    .specialties-list{ display:flex; flex-direction:column; gap:12px; align-items:center; margin-top:8px; }
-    .spec-card{
-      width:88%; max-width:640px;
-      background:#fff; border-radius:14px; padding:14px 18px;
-      font-size:16px; color:var(--accent); font-weight:600;
-      box-shadow:0 6px 18px rgba(0,0,0,0.06);
-      border:none; cursor:pointer; text-align:center;
-    }
-    .spec-card.spec-active{ background: #eaf3ff; color: var(--primary); }
-
-    .year-row{ display:flex; align-items:center; gap:8px; margin:12px 0; justify-content:center; }
-    .year-row select{ padding:8px 10px; border-radius:8px; border:1px solid #ddd; }
-
-    .groups-list{ width:100%; display:flex; flex-direction:column; gap:10px; align-items:center; margin-bottom:12px; }
-    .group-row{
-      width:92%; max-width:720px; background:#fff; border-radius:12px; padding:12px 14px;
-      display:flex; justify-content:space-between; align-items:center; box-shadow:0 4px 12px rgba(0,0,0,0.06);
-    }
-    .view-btn{ background:var(--accent); color:white; border:none; padding:8px 12px; border-radius:10px; cursor:pointer; }
-
-    .schedule-card{
-      width:92%; max-width:720px; margin:18px auto; padding:16px; border-radius:12px; background:#fff;
-      box-shadow:0 8px 22px rgba(0,0,0,0.07);
-    }
-    .pdf-link{ display:inline-block; margin-top:10px; padding:10px 14px; background:var(--primary); color:white; border-radius:10px; text-decoration:none; }
-
-    .empty, .center { text-align:center; color:#666; padding:14px; }
-
-    .footer{ text-align:center; padding:18px 0; color:#777; margin-top:28px; }
-
-    @media (max-width:600px){
-      .pole-card{ padding:12px 16px; font-size:18px; border-radius:12px; }
-      .spec-card{ padding:10px 14px; font-size:16px; }
-      .group-row{ padding:8px 10px; border-radius:10px; }
-    }
-
-    /* small helpers */
-    .top-row { display:flex; justify-content:space-between; align-items:center; gap:8px; margin:10px 0; }
-    .search { padding:8px 10px; border-radius:10px; border:1px solid #e0e0e0; width:100%; max-width:320px; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CMC Nador - Emplois du Temps</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div id="root"></div>
 
-  <!-- React & Babel via CDN (no build needed) -->
-  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
-  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <header class="header">
+        <img src="cmc-logo.png" alt="Logo CMC" class="logo">
+        <h1>Emplois du Temps – CMC Oriental Nador</h1>
+        <p>Consultez les emplois du temps par pôle</p>
+    </header>
 
-  <script type="text/babel">
-    const { useState, useEffect } = React;
-
-    // <<-- CHANGE this to your sheet ID if needed -->
-    const SHEET_ID = "1AfYExJcJEJVw6hOmPUUkBXBnbC16MM9vu453MpVLIpw";
-    const GVIZ_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json`;
-
-    function parseGvizText(text) {
-      // Google returns "/*O_o*/\ngoogle.visualization.Query.setResponse(...);"
-      const jsonStr = text.substring(text.indexOf('(') + 1, text.lastIndexOf(')'));
-      return JSON.parse(jsonStr);
-    }
-
-    function App(){
-      const [rows, setRows] = useState([]);
-      const [loading, setLoading] = useState(true);
-      const [selectedPole, setSelectedPole] = useState(null);
-      const [selectedSpecialty, setSelectedSpecialty] = useState(null);
-      const [selectedYear, setSelectedYear] = useState('');
-      const [selectedGroup, setSelectedGroup] = useState(null);
-
-      useEffect(() => {
-        fetch(GVIZ_URL)
-          .then(r => r.text())
-          .then(text => {
-            const js = parseGvizText(text);
-            const cols = js.table.cols.map(c => c.label || c.id);
-            const data = js.table.rows.map(r => {
-              const obj = {};
-              r.c.forEach((cell, i) => {
-                obj[cols[i]] = cell ? cell.v : "";
-              });
-              return obj;
-            });
-            // Ensure header names match: use exact French names in your sheet: pôle, spécialité, année, groupe, Drive link, last update
-            setRows(data);
-            setLoading(false);
-          })
-          .catch(err => {
-            console.error(err);
-            setLoading(false);
-          });
-      }, []);
-
-      useEffect(() => {
-        setSelectedSpecialty(null);
-        setSelectedYear('');
-        setSelectedGroup(null);
-      }, [selectedPole]);
-
-      useEffect(() => {
-        setSelectedGroup(null);
-      }, [selectedSpecialty, selectedYear]);
-
-      if (loading) return <div className="center">Chargement...</div>;
-
-      // unique poles (keep order)
-      const poles = [...new Map(rows.map(r => [r['pôle'], r['pôle']])).values()].filter(Boolean);
-
-      const specialties = selectedPole
-        ? [...new Map(rows.filter(r => r['pôle'] === selectedPole).map(r => [r['spécialité'], r['spécialité']])).values()].filter(Boolean)
-        : [];
-
-      const groups = rows.filter(r =>
-        (!selectedPole || r['pôle'] === selectedPole) &&
-        (!selectedSpecialty || r['spécialité'] === selectedSpecialty) &&
-        (!selectedYear || String(r['année']) === String(selectedYear))
-      );
-
-      return (
-        <div>
-          <header className="header">
-            <h1>Emplois du Temps – CMC</h1>
-            <div className="subtitle">Oriental / Nador</div>
-          </header>
-
-          <main className="container">
-            <h2 className="title-centered">Nos Pôles</h2>
-
-            <div className="poles-grid">
-              {poles.map((p,i) => (
-                <button key={i} className={`pole-card ${selectedPole===p?'active':''}`} onClick={() => setSelectedPole(p)}>
-                  {p}
-                </button>
-              ))}
-            </div>
-
-            {selectedPole && (
-              <>
-                <h3 className="section-title">Spécialités — {selectedPole}</h3>
-                <div className="specialties-list">
-                  {specialties.length ? specialties.map((s,i)=>(
-                    <button key={i} className={`spec-card ${selectedSpecialty===s?'spec-active':''}`} onClick={() => setSelectedSpecialty(s)}>
-                      {s}
-                    </button>
-                  )) : <div className="empty">Aucune spécialité trouvée</div>}
-                </div>
-
-                <div className="year-row">
-                  <label>Année:</label>
-                  <select value={selectedYear} onChange={e => setSelectedYear(e.target.value)}>
-                    <option value="">Toutes les années</option>
-                    <option value="1">1ère Année</option>
-                    <option value="2">2ème Année</option>
-                  </select>
-                </div>
-
-                <h3 className="section-title">Groupes</h3>
-                <div className="groups-list">
-                  {groups.length ? groups.map((g,i)=>(
-                    <div key={i} className="group-row">
-                      <div>
-                        <strong>{g['groupe'] || '—'}</strong> — Année {g['année'] || '—'}
-                      </div>
-                      <div style={{display:'flex',gap:8,alignItems:'center'}}>
-                        <a className="pdf-link" style={{background:'#444', padding:'8px 10px', borderRadius:8, color:'#fff', textDecoration:'none'}} href={g['Drive link']||'#'} target="_blank" rel="noreferrer">PDF</a>
-                        <button className="view-btn" onClick={()=>setSelectedGroup(g)}>Voir</button>
-                      </div>
-                    </div>
-                  )) : <div className="empty">Aucun groupe trouvé.</div>}
-                </div>
-              </>
-            )}
-
-            {selectedGroup && (
-              <div className="schedule-card">
-                <h4>Groupe: {selectedGroup['groupe']}</h4>
-                <p>Spécialité: {selectedGroup['spécialité']}</p>
-                <p>Pôle: {selectedGroup['pôle']}</p>
-                <p>Année: {selectedGroup['année']}</p>
-                <p>Dernière mise à jour: {selectedGroup['last update'] || selectedGroup['last_update'] || ''}</p>
-                <a className="pdf-link" href={selectedGroup['Drive link']} target="_blank" rel="noreferrer">Ouvrir le PDF</a>
-              </div>
-            )}
-          </main>
-
-          <footer className="footer">© CMC Oriental Nador</footer>
+    <main class="container">
+        <h2 class="section-title">Nos Pôles</h2>
+        <div id="loading">Chargement des pôles...</div>
+        <div id="pole-list" class="list-container">
+            <!-- Pôles will be dynamically inserted here -->
         </div>
-      );
-    }
+    </main>
 
-    // Render
-    const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(<App />);
-  </script>
+    <script src="script.js"></script>
 </body>
 </html>
